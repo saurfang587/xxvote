@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>香香编程-投票项目</title>
+</head>
+<body>
+<main>
+    {{range $key,$value := .vote}}
+    <h2><a href="/vote?id={{$value.Id}}">{{$value.Title}}</a></h2>
+    {{end}}
+</main>
+</body>
+</html>

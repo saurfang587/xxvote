@@ -1,5 +1,7 @@
 package main
 
-func main() {
+import "xxvote/app"
 
+func main() {
+	app.Start()
 }
