@@ -2,12 +2,43 @@
 <html lang="en">
 <head>
     <title>香香编程-投票项目</title>
+    <script src="https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script>
 </head>
 <body>
 <main>
-    {{range $key,$value := .vote}}
-    <h2><a href="/vote?id={{$value.Id}}">{{$value.Title}}</a></h2>
-    {{end}}
+    <div id="vote_table">
+
+    </div>
+<!--    {{range $key,$value := .vote}}-->
+<!--    <h2><a href="/vote?id={{$value.Id}}">{{$value.Title}}</a></h2>-->
+<!--    {{end}}-->
 </main>
+<script>
+    $(document).ready(function(){
+        loadData()
+    });
+    function loadData() {
+        $.ajax({
+            //请求资源路径
+            url:"/votes",
+            //请求参数
+            data:{
+            },
+            //请求方式
+            type:"get",
+            //数据形式
+            dataType:"json",
+            //请求成功后调用的回调函数
+            success:function (data) {
+                console.log(data)
+
+            },
+            //请求失败后调用的回调函数
+            error:function () {
+                alert("数据加载失败！")
+            }
+        });
+    }
+</script>
 </body>
 </html>

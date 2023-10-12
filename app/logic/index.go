@@ -9,8 +9,14 @@ import (
 )
 
 func Index(context *gin.Context) {
+	context.HTML(http.StatusOK, "index.tmpl", nil)
+}
+
+func GetVotes(context *gin.Context) {
 	ret := model.GetVotes()
-	context.HTML(http.StatusOK, "index.tmpl", gin.H{"vote": ret})
+	context.JSON(http.StatusOK, tools.ECode{
+		Data: ret,
+	})
 }
 
 func GetVoteInfo(context *gin.Context) {
