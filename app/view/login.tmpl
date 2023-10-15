@@ -3,14 +3,50 @@
 <head>
     <meta charset="utf-8">
     <title>香香编程-投票项目</title>
+    <script src="https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script>
 </head>
 <body>
 <main class="main">
-    <form method="post" action="/login">
-        <input type="text" name="name" placeholder="Your name">
-        <input type="password" name="password" placeholder="Password">
-        <button type="submit">Sign in</button>
-    </form>
+    <input type="text" name="name" id="name" placeholder="Your name">
+    <input type="password" name="password" id="password" placeholder="Password">
+    <button type="submit" id="login_sub">Sign in</button>
 </main>
+<script>
+    $(document).ready(function(){
+        $("#login_sub").on("click",function () {
+            $.ajax({
+                //请求资源路径
+                url:"/login",
+                //请求参数
+                data:{
+                    name:$("#name").val(),
+                    password:$("#password").val()
+                },
+                //请求方式
+                type:"post",
+                //数据形式
+                dataType:"json",
+                //请求成功后调用的回调函数
+                success:function (data) {
+                    console.log(data)
+
+                    if (data.code !== 0){
+                        alert(data.message)
+                    }else{
+                        alert("已登录")
+                      // setTimeout("pageRedirect()", 3000);
+                    }
+                },
+                //请求失败后调用的回调函数
+                error:function () {
+                    alert("请求失败！")
+                }
+            });
+        });
+    });
+    function pageRedirect() {
+        window.location.replace("/index"); //实现跳转
+    }
+</script>
 </body>
 </html>

@@ -13,12 +13,21 @@ func Index(context *gin.Context) {
 	context.HTML(http.StatusOK, "index.tmpl", gin.H{"vote": ret})
 }
 
+func GetVotes(context *gin.Context) {
+	ret := model.GetVotes()
+	context.JSON(http.StatusOK, tools.ECode{
+		Data: ret,
+	})
+}
+
 func GetVoteInfo(context *gin.Context) {
 	var id int64
 	idStr := context.Query("id")
 	id, _ = strconv.ParseInt(idStr, 10, 64)
 	ret := model.GetVote(id)
-	context.HTML(http.StatusOK, "vote.tmpl", gin.H{"vote": ret})
+	context.JSON(http.StatusOK, tools.ECode{
+		Data: ret,
+	})
 }
 
 func DoVote(context *gin.Context) {
@@ -35,7 +44,7 @@ func DoVote(context *gin.Context) {
 	}
 
 	model.DoVote(userID, voteId, opt)
-	context.JSON(http.StatusOK, tools.Ecode{
+	context.JSON(http.StatusOK, tools.ECode{
 		Message: "投票完成",
 	})
 }

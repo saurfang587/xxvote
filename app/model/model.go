@@ -18,7 +18,7 @@ type VoteOpt struct {
 	Id          int64     `gorm:"column:id;primary_key;AUTO_INCREMENT;NOT NULL"`
 	Name        string    `gorm:"column:name;default:NULL"`
 	VoteId      int64     `gorm:"column:vote_id;default:NULL"`
-	Count       int32     `gorm:"column:count;default:NULL"`
+	Count       int64     `gorm:"column:count;default:NULL"`
 	CreatedTime time.Time `gorm:"column:created_time;default:NULL"`
 	UpdatedTime time.Time `gorm:"column:updated_time;default:NULL"`
 }
