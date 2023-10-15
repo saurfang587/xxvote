@@ -24,7 +24,9 @@ func GetVoteInfo(context *gin.Context) {
 	idStr := context.Query("id")
 	id, _ = strconv.ParseInt(idStr, 10, 64)
 	ret := model.GetVote(id)
-	context.HTML(http.StatusOK, "vote.tmpl", gin.H{"vote": ret})
+	context.JSON(http.StatusOK, tools.ECode{
+		Data: ret,
+	})
 }
 
 func DoVote(context *gin.Context) {

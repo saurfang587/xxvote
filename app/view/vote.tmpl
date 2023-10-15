@@ -22,5 +22,34 @@
     </form>
 
 </main>
+<script>
+    $(document).ready(function(){
+        loadData()
+    });
+    function loadData() {
+        $.ajax({
+            //请求资源路径
+            url:"/votes",
+            //请求参数
+            data:{
+            },
+            //请求方式
+            type:"get",
+            //数据形式
+            dataType:"json",
+            //请求成功后调用的回调函数
+            success:function (data) {
+                console.log(data)
+                for (const datum of data.data) {
+                    $("#vote_table").append('<a href=\"/vote?id='+datum.Id+'\">'+datum.Title+'</a></h2><br>');
+                }
+            },
+            //请求失败后调用的回调函数
+            error:function () {
+                alert("数据加载失败！")
+            }
+        });
+    }
+</script>
 </body>
 </html>

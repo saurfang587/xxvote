@@ -109,8 +109,20 @@ func DoVoteV2(userId, voteId int64, optIDs []int64) bool {
 	return true
 }
 
-func AddVote() {
-
+func AddVote(vote Vote, opt []VoteOpt) error {
+	err := Conn.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&vote).Error; err != nil {
+			return err
+		}
+		for _, voteOpt := range opt {
+			voteOpt.VoteId = vote.Id
+			if err := tx.Create(&voteOpt).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return err
 }
 
 func DelVote(id int64) error {
@@ -139,6 +151,17 @@ func DelVote(id int64) error {
 	return nil
 }
 
-func UpdateVote() {
-
+func UpdateVote(vote Vote, opt []VoteOpt) error {
+	err := Conn.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(&vote).Error; err != nil {
+			return err
+		}
+		for _, voteOpt := range opt {
+			if err := tx.Save(&voteOpt).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return err
 }

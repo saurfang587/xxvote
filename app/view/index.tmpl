@@ -12,10 +12,57 @@
 <!--    {{range $key,$value := .vote}}-->
 <!--    <h2><a href="/vote?id={{$value.Id}}">{{$value.Title}}</a></h2>-->
 <!--    {{end}}-->
+    <h1>
+        投票详情
+    </h1>
+    <div id="vote_info">
+
+    </div>
 </main>
 <script>
     $(document).ready(function(){
         loadData()
+        // 当点击<a>标签时触发AJAX请求
+        $('body').on('click', '.ajax-trigger', function(event) {
+            // 阻止<a>标签的默认行为，即防止页面跳转
+            event.preventDefault();
+            $("#vote_info").empty();
+            $.ajax({
+                url: "/vote",
+                type: "GET",
+                data:{
+                    id:$(this).attr("data"),
+                },
+                dataType: "json",
+                success: function(data) {
+                    var vote = data.data.Vote
+                    var h1 = $("<div></div>")
+                    h1.append('<h2>title:'+vote.Title+'</h2>')
+                    h1.append('<h2>id:'+vote.Id+'</h2>')
+                    h1.append('<h2>Type:'+vote.Type+'</h2>')
+                    h1.append('<h2>Status:'+vote.Status+'</h2>')
+                    $("#vote_info").append(h1)
+
+
+                    var form = $("<form method=\"post\" action=\"/vote\" ></form>")
+                    form.append(' <input type="hidden" name="vote_id" value="'+vote.Id+'">')
+
+                    for (const v of data.data.Opt) {
+                        form.append('<input type="checkbox" name="opt[]" id="customCheck'+v.Id+'" value="'+v.Id+'">');
+                        form.append('<label  for="customCheck'+v.Id+'">'+v.Name+'</label>');
+
+                    }
+
+                    form.append('<button type="submit">Submit</button>')
+                    $("#vote_info").append(form)
+
+
+                },
+                error: function(data) {
+                    alert(data.message)
+                }
+            });
+        });
     });
     function loadData() {
         $.ajax({
@@ -31,7 +78,9 @@
             //请求成功后调用的回调函数
             success:function (data) {
                 console.log(data)
-
+                for (const datum of data.data) {
+                    $("#vote_table").append('<a href="#" class="ajax-trigger" data="'+datum.Id+'">'+datum.Title+'</a></h2><br>');
+                }
             },
             //请求失败后调用的回调函数
             error:function () {
