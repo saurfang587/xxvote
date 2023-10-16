@@ -37,6 +37,8 @@ func New() {
 		r.GET("/login", logic.GetLogin)
 		r.POST("/login", logic.DoLogin)
 		r.GET("/logout", logic.Logout)
+
+		r.POST("/register", logic.CreateUser)
 	}
 
 	if err := r.Run(":8080"); err != nil {
