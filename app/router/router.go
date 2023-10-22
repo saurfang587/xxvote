@@ -1,6 +1,7 @@
 package router
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"xxvote/app/logic"
@@ -41,6 +42,42 @@ func New() {
 		r.POST("/register", logic.CreateUser)
 	}
 
+	//验证码
+	{
+		r.GET("/captcha", func(context *gin.Context) {
+			captcha, err := tools.CaptchaGenerate()
+			if err != nil {
+				context.JSON(http.StatusOK, tools.ECode{
+					Code:    10005,
+					Message: err.Error(),
+				})
+				return
+			}
+
+			context.JSON(http.StatusOK, tools.ECode{
+				Data: captcha,
+			})
+		})
+
+		r.POST("/captcha/verify", func(context *gin.Context) {
+			var param tools.CaptchaData
+			if err := context.ShouldBind(&param); err != nil {
+				context.JSON(http.StatusOK, tools.ParamErr)
+				return
+			}
+
+			fmt.Printf("参数为：%+v", param)
+			if !tools.CaptchaVerify(param) {
+				context.JSON(http.StatusOK, tools.ECode{
+					Code:    10008,
+					Message: "验证失败",
+				})
+				return
+			}
+			context.JSON(http.StatusOK, tools.OK)
+		})
+	}
+
 	if err := r.Run(":8080"); err != nil {
 		panic("gin 启动失败！")
 	}
@@ -59,11 +96,11 @@ func checkUser(context *gin.Context) {
 	}
 
 	if id <= 0 || name == "" {
-		context.JSON(http.StatusOK, tools.ECode{
-			Code:    10001,
-			Message: "您没有登录",
-		})
-		context.Abort()
+		//context.JSON(http.StatusOK, tools.ECode{
+		//	Code:    10001,
+		//	Message: "您没有登录",
+		//})
+		//context.Abort()
 	}
 
 	context.Next()

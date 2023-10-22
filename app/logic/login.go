@@ -14,8 +14,10 @@ import (
 )
 
 type User struct {
-	Name     string `json:"name" form:"name"`
-	Password string `json:"password" form:"password"`
+	Name         string `json:"name" form:"name"`
+	Password     string `json:"password" form:"password"`
+	CaptchaId    string `json:"captcha_id" form:"captcha_id"`
+	CaptchaValue string `json:"captcha_value" form:"captcha_value"`
 }
 
 func GetLogin(context *gin.Context) {
@@ -29,6 +31,19 @@ func DoLogin(context *gin.Context) {
 			Code:    10001,
 			Message: err.Error(), //这里有风险
 		})
+	}
+
+	fmt.Printf("user:%+v\n", user)
+
+	if !tools.CaptchaVerify(tools.CaptchaData{
+		CaptchaId: user.CaptchaId,
+		Data:      user.CaptchaValue,
+	}) {
+		context.JSON(http.StatusOK, tools.ECode{
+			Code:    10002,
+			Message: "验证码校验失败！", //这里有风险
+		})
+		return
 	}
 
 	ret := model.GetUser(user.Name)

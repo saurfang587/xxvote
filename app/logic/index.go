@@ -1,6 +1,7 @@
 package logic
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
@@ -24,6 +25,15 @@ func GetVoteInfo(context *gin.Context) {
 	idStr := context.Query("id")
 	id, _ = strconv.ParseInt(idStr, 10, 64)
 	ret := model.GetVote(id)
+	//log.Printf("[printf]ret:%+v\n", ret)
+	//log.Panicf("[Panicf]ret:%+v\n", ret)
+	//log.Fatalf("[Fatalf]ret:%+v", ret)
+	//log.SetLevel(log.DebugLevel)
+	//log.Infof("[info]ret:%+v", ret)
+	//log.Errorf("[error]ret:%+v", ret)
+
+	tools.Logger.Infoln(fmt.Sprintf("ret:%+v", ret))
+
 	context.JSON(http.StatusOK, tools.ECode{
 		Data: ret,
 	})
@@ -42,6 +52,15 @@ func DoVote(context *gin.Context) {
 		opt = append(opt, optId)
 	}
 
+	//查询是否投过票了
+	voteUser := model.GetVoteHistory(userID, voteId)
+	if len(voteUser) > 0 {
+		context.JSON(http.StatusOK, tools.ECode{
+			Code:    10010,
+			Message: "您已投过票了",
+		})
+		return
+	}
 	model.DoVote(userID, voteId, opt)
 	context.JSON(http.StatusOK, tools.ECode{
 		Message: "投票完成",

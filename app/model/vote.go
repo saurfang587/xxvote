@@ -17,12 +17,12 @@ func GetVotes() []Vote {
 func GetVote(id int64) VoteWithOpt {
 	var ret Vote
 	if err := Conn.Table("vote").Where("id = ?", id).First(&ret).Error; err != nil {
-		fmt.Printf("err:%s", err.Error())
+		fmt.Printf("err:%s\n", err.Error())
 	}
 
 	opt := make([]VoteOpt, 0)
 	if err := Conn.Table("vote_opt").Where("vote_id = ?", id).Find(&opt).Error; err != nil {
-		fmt.Printf("err:%s", err.Error())
+		fmt.Printf("err:%s\n", err.Error())
 	}
 	return VoteWithOpt{
 		Vote: ret,
@@ -36,8 +36,21 @@ func DoVote(userId, voteId int64, optIDs []int64) bool {
 	tx := Conn.Begin()
 
 	var ret Vote
+	//有没有这个投票
 	if err := tx.Table("vote").Where("id = ?", voteId).First(&ret).Error; err != nil {
 		fmt.Printf("err:%s", err.Error())
+		tx.Rollback()
+		return false
+	}
+	//检查是否投过票
+	var oldUser VoteOptUser
+	if err := tx.Table("vote_opt_user").Where("user_id = ? and vote_id = ?", userId, voteId).First(&oldUser).Error; err != nil {
+		fmt.Printf("err:%s", err.Error())
+		tx.Rollback()
+		return false
+	}
+	if oldUser.Id > 0 {
+		fmt.Printf("err:%s", "用户已经投过票了！")
 		tx.Rollback()
 		return false
 	}
@@ -164,4 +177,35 @@ func UpdateVote(vote Vote, opt []VoteOpt) error {
 		return nil
 	})
 	return err
+}
+
+func GetVoteHistory(userId, voteId int64) []VoteOptUser {
+	ret := make([]VoteOptUser, 0)
+	if err := Conn.Table("vote_opt_user").Where("user_id = ? and vote_id = ?", userId, voteId).Find(&ret).Error; err != nil {
+		fmt.Printf("err:%s", err.Error())
+	}
+	return ret
+
+}
+
+func EndVote() error {
+	//执行逻辑
+	votes := make([]Vote, 0)
+	err := Conn.Table("vote").Where("status = 1").Find(&votes).Error
+	if err != nil {
+		return err
+	}
+
+	now := time.Now().Unix()
+	for _, vote := range votes {
+		old := vote.CreatedTime.Unix()
+		if old+vote.Time < now {
+			//到期了,就关闭掉
+			if err1 := Conn.Table("vote").Where("id = ?", vote.Id).Update("status", 2).Error; err1 != nil {
+				fmt.Printf("err:%s", err1.Error())
+			}
+		}
+	}
+
+	return nil
 }

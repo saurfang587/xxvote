@@ -9,10 +9,17 @@
 <main class="main">
     <input type="text" name="name" id="name" placeholder="Your name">
     <input type="password" name="password" id="password" placeholder="Password">
+    <input type="hidden" name="captcha_id" id="captcha_id">
+    <input type="text" name="captcha_value" id="captcha_value">
+
     <button type="submit" id="login_sub">Sign in</button>
+    <div id="image-captcha">
+
+    </div>
 </main>
 <script>
     $(document).ready(function(){
+        loadCaptcha()
         $("#login_sub").on("click",function () {
             $.ajax({
                 //请求资源路径
@@ -20,7 +27,9 @@
                 //请求参数
                 data:{
                     name:$("#name").val(),
-                    password:$("#password").val()
+                    password:$("#password").val(),
+                    captcha_id:$("#captcha_id").val(),
+                    captcha_value:$("#captcha_value").val()
                 },
                 //请求方式
                 type:"post",
@@ -43,9 +52,33 @@
                 }
             });
         });
+        $("#image-captcha").on("click",function (){
+            loadCaptcha()
+        })
     });
     function pageRedirect() {
         window.location.replace("/index"); //实现跳转
+    }
+    function loadCaptcha(){
+        $.ajax({
+            url:"/captcha",
+            type:"get",
+            dataType:"json",
+            success:function (data) {
+                console.log(data)
+                var img = new Image();
+                $("#image-captcha").empty()
+                img.onload = function() {
+                    // 将图片添加到页面上
+                    $("#image-captcha").append(img);
+                };
+                img.src = data.data.data
+                $("#captcha_id").val(data.data.captcha_id)
+            },
+            error:function () {
+                alert("登录成功")
+            }
+        });
     }
 </script>
 </body>
