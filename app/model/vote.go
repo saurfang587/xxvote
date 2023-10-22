@@ -39,6 +39,16 @@ func DoVote(userId, voteId int64, optIDs []int64) bool {
 		tx.Rollback()
 	}
 
+	var oldVoteUser VoteOptUser
+	if err := tx.Table("vote_opt_user").Where("vote_id = ? and user_id = ?", voteId, userId).First(&oldVoteUser).Error; err != nil {
+		fmt.Printf("err:%s", err.Error())
+		tx.Rollback()
+	}
+	if oldVoteUser.Id > 0 {
+		fmt.Printf("用户已投票")
+		tx.Rollback()
+	}
+
 	for _, value := range optIDs {
 		if err := tx.Table("vote_opt").Where("id = ?", value).Update("count", gorm.Expr("count + ?", 1)).Error; err != nil {
 			fmt.Printf("err:%s", err.Error())
@@ -157,4 +167,28 @@ func DelVote(id int64) bool {
 	}
 
 	return true
+}
+
+func GetVoteHistory(userId, voteId int64) []VoteOptUser {
+	ret := make([]VoteOptUser, 0)
+	if err := Conn.Table("vote_opt_user").Where("vote_id = ? and user_id = ?", voteId, userId).First(&ret).Error; err != nil {
+		fmt.Printf("err:%s", err.Error())
+	}
+	return ret
+}
+
+func EndVote() {
+	votes := make([]Vote, 0)
+	if err := Conn.Table("vote").Where("status = ?", 1).Find(&votes).Error; err != nil {
+		return
+	}
+
+	now := time.Now().Unix()
+	for _, vote := range votes {
+		if vote.Time+vote.CreatedTime.Unix() <= now {
+			Conn.Table("vote").Where("id = ?", vote.Id).Update("status", 0)
+		}
+	}
+
+	return
 }

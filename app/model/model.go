@@ -50,6 +50,10 @@ type User struct {
 	UpdatedTime time.Time `gorm:"column:updated_time;default:NULL"`
 }
 
+func (v *User) TableName() string {
+	return "user"
+}
+
 type VoteWithOpt struct {
 	Vote Vote
 	Opt  []VoteOpt
