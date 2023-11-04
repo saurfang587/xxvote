@@ -24,6 +24,15 @@ func GetLogin(context *gin.Context) {
 	context.HTML(http.StatusOK, "login.tmpl", nil)
 }
 
+// DoLogin godoc
+// @Summary      执行用户登录
+// @Description  执行用户登录
+// @Tags         login
+// @Accept       json
+// @Produce      json
+// @Param        name   body      User true	"login User"
+// @Success      200  {object}  tools.ECode
+// @Router       /login [post]
 func DoLogin(context *gin.Context) {
 	var user User
 	if err := context.ShouldBind(&user); err != nil {
@@ -57,18 +66,29 @@ func DoLogin(context *gin.Context) {
 
 	//context.SetCookie("name", user.Name, 3600, "/", "", true, false)
 	//context.SetCookie("Id", fmt.Sprint(ret.Id), 3600, "/", "", true, false)
-	_ = model.SetSession(context, user.Name, ret.Id)
+	_ = model.SetSessionV1(context, user.Name, ret.Id)
 	context.JSON(http.StatusOK, tools.ECode{
 		Message: "登录成功",
 	})
 }
 
+// Logout godoc
+// @Summary      用户退出登录
+// @Description  用户退出登录
+// @Tags         login
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  tools.ECode
+// @Router       /logout [get]
 func Logout(context *gin.Context) {
 	//context.SetCookie("name", "", 3600, "/", "", true, false)
 	//context.SetCookie("Id", "", 3600, "/", "", true, false)
 
-	_ = model.FlushSession(context)
-	context.Redirect(http.StatusFound, "/login")
+	_ = model.FlushSessionV1(context)
+	context.JSON(http.StatusUnauthorized, tools.ECode{
+		Code:    0,
+		Message: "您已退出登录",
+	})
 }
 
 type reUser struct {
@@ -141,6 +161,8 @@ func CreateUser(context *gin.Context) {
 		Password:    encrypt(user.Password),
 		CreatedTime: time.Now(),
 		UpdatedTime: time.Now(),
+		Uuid:        tools.GetUUID(),
+		Uid:         tools.GetUid(),
 	}
 	if err := model.CreateUser(&newUser); err != nil {
 		context.JSON(http.StatusOK, tools.ECode{
@@ -156,7 +178,7 @@ func CreateUser(context *gin.Context) {
 	return
 }
 
-// 最基础的版本
+// encrypt 最基础的版本
 func encrypt(pwd string) string {
 
 	hash := md5.New()
@@ -168,8 +190,9 @@ func encrypt(pwd string) string {
 	return hashString
 }
 
+// encryptV1 给密码加个盐值
 func encryptV1(pwd string) string {
-	newPwd := pwd + "香香编程喵喵喵" //不能随便起，且不能暴露
+	newPwd := pwd + "香香编程喵喵喵" //盐值不能随便起，且不能暴露，
 	hash := md5.New()
 	hash.Write([]byte(newPwd))
 	hashBytes := hash.Sum(nil)

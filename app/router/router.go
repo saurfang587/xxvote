@@ -3,10 +3,13 @@ package router
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"net/http"
 	"xxvote/app/logic"
 	"xxvote/app/model"
 	"xxvote/app/tools"
+	_ "xxvote/docs"
 )
 
 func New() {
@@ -14,21 +17,33 @@ func New() {
 	r.LoadHTMLGlob("app/view/*")
 	//相关的路径 放在这里
 
+	// use ginSwagger middleware to serve the API docs
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
 	index := r.Group("")
 	index.Use(checkUser)
 	//投票相关
 	{
 		index.GET("/index", logic.Index)
-		index.GET("/votes", logic.GetVotes)
-		index.GET("/vote", logic.GetVoteInfo)
 		index.POST("/vote", logic.DoVote)
 
-		index.GET("/vote/delete", logic.DelVote)
+		index.DELETE("/vote/delete", logic.DelVote)
 		index.POST("/vote/add", logic.AddVote)
-		index.POST("/vote/update", logic.UpdateVote)
+		index.PUT("/vote/update", logic.UpdateVote)
 
 		index.GET("/result", logic.ResultInfo)
 		index.GET("/result/info", logic.ResultVote)
+	}
+	//投票项目 RESTFUL 风格
+	{
+		index.GET("/votes", logic.GetVotes)
+		index.GET("/vote", logic.GetVoteInfo)
+		index.PUT("/vote", logic.UpdateVote)
+		index.DELETE("/vote", logic.DelVote)
+
+		index.POST("/do_vote", logic.DoVote)
+
+		index.GET("/vote/result", logic.ResultVote)
 	}
 
 	r.GET("/", logic.Index)
@@ -44,20 +59,7 @@ func New() {
 
 	//验证码
 	{
-		r.GET("/captcha", func(context *gin.Context) {
-			captcha, err := tools.CaptchaGenerate()
-			if err != nil {
-				context.JSON(http.StatusOK, tools.ECode{
-					Code:    10005,
-					Message: err.Error(),
-				})
-				return
-			}
-
-			context.JSON(http.StatusOK, tools.ECode{
-				Data: captcha,
-			})
-		})
+		r.GET("/captcha", logic.GetCaptcha)
 
 		r.POST("/captcha/verify", func(context *gin.Context) {
 			var param tools.CaptchaData
@@ -78,6 +80,13 @@ func New() {
 		})
 	}
 
+	//验证 Redis
+	{
+		r.GET("/redis", func(context *gin.Context) {
+			str := model.GetVoteCache(context, 2)
+			fmt.Printf("XXBC:%+v\n", str)
+		})
+	}
 	if err := r.Run(":8080"); err != nil {
 		panic("gin 启动失败！")
 	}
@@ -86,7 +95,7 @@ func New() {
 func checkUser(context *gin.Context) {
 	var name string
 	var id int64
-	session := model.GetSession(context)
+	session := model.GetSessionV1(context)
 	if v, ok := session["name"]; ok {
 		name = v.(string)
 	}

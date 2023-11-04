@@ -43,11 +43,13 @@ func (v *Vote) TableName() string {
 }
 
 type User struct {
-	Id          int64     `gorm:"column:id;primary_key;AUTO_INCREMENT;NOT NULL"`
-	Name        string    `gorm:"column:name;default:NULL"`
-	Password    string    `gorm:"column:password;default:NULL"`
-	CreatedTime time.Time `gorm:"column:created_time;default:NULL"`
-	UpdatedTime time.Time `gorm:"column:updated_time;default:NULL"`
+	Id          int64     `gorm:"column:id;type:bigint(20);primary_key;AUTO_INCREMENT" json:"id"`
+	Uid         int64     `gorm:"column:uid;type:bigint(20)" json:"uid"`
+	Uuid        string    `gorm:"column:uuid;type:varchar(50)" json:"uuid"`
+	Name        string    `gorm:"column:name;type:varchar(255)" json:"name"`
+	Password    string    `gorm:"column:password;type:varchar(255)" json:"password"`
+	CreatedTime time.Time `gorm:"column:created_time;type:datetime" json:"created_time"`
+	UpdatedTime time.Time `gorm:"column:updated_time;type:datetime" json:"updated_time"`
 }
 
 func (v *User) TableName() string {
@@ -56,5 +58,10 @@ func (v *User) TableName() string {
 
 type VoteWithOpt struct {
 	Vote Vote
-	Opt  []VoteOpt
+	Opt  []VoteOpt `gorm:"foreignKey:VoteId"`
+}
+
+type VoteWithOptV1 struct {
+	Vote
+	Opt []VoteOpt `gorm:"foreignKey:VoteId"`
 }

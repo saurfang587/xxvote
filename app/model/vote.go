@@ -3,13 +3,24 @@ package model
 import (
 	"fmt"
 	"gorm.io/gorm"
+	"sync"
 	"time"
+	"xxvote/app/tools"
 )
 
 func GetVotes() []Vote {
 	ret := make([]Vote, 0)
 	if err := Conn.Table("vote").Find(&ret).Error; err != nil {
 		fmt.Printf("err:%s", err.Error())
+	}
+	return ret
+}
+
+func GetVotesV1() []Vote {
+	ret := make([]Vote, 0)
+	err := Conn.Raw("select * from vote").Scan(&ret).Error
+	if err != nil {
+		tools.Logger.Printf("[GetVotesV1]err:%s", err.Error())
 	}
 	return ret
 }
@@ -28,6 +39,137 @@ func GetVote(id int64) VoteWithOpt {
 		Vote: ret,
 		Opt:  opt,
 	}
+}
+
+// GetVoteV1 改为原生SQL 用的较多的方式
+func GetVoteV1(id int64) (*VoteWithOpt, error) {
+	var ret Vote
+	opt := make([]VoteOpt, 0)
+	err := Conn.Raw("select * from vote where id = ?", id).Scan(&ret).Error
+	if err != nil {
+		tools.Logger.Printf("[GetVoteV1]err:%s", err.Error())
+		return nil, err
+	}
+
+	err1 := Conn.Raw("select * from vote_opt where vote_id = ?").Scan(&opt).Error
+	if err1 != nil {
+		tools.Logger.Printf("[GetVoteV1]err:%s", err.Error())
+		return nil, err
+	}
+
+	return &VoteWithOpt{
+		Vote: ret,
+		Opt:  opt,
+	}, nil
+}
+
+// GetVoteV2 改为Gorm预加载模式 建议使用
+func GetVoteV2(id int64) (*VoteWithOptV1, error) {
+	var ret VoteWithOptV1
+	err := Conn.Preload("vote_opt", "vote_id = ?", id).Raw("select * from vote where id = ?", id).Scan(&ret).Error
+	if err != nil {
+		tools.Logger.Printf("[GetVoteV1]err:%s", err.Error())
+		return nil, err
+	}
+
+	return &ret, nil
+}
+
+// GetVoteV3 改为Join模式 数据量少的时候会用的方式
+func GetVoteV3(id int64) (*VoteWithOptV1, error) {
+	var ret VoteWithOptV1
+	sql := "select vote.*,vote_opt.id as vid, vote_opt.name,vote_opt.count from vote join vote_opt on vote.id = vote_opt.vote_id where vote.id = ?"
+	//err := Conn.Raw(sql, id).Scan(&ret).Error //这样子是无法直接扫到结构体里的,我们可以提供两个方法：
+	//第一个 把ret 换成map
+	//ret1 := make(map[any]any)
+	//err := Conn.Raw(sql, id).Scan(&ret1).Error
+	//for a, a2 := range ret1 {
+	//	//再把 a a2 转义到 VoteWithOpt中
+	//}
+	//第二种方法
+	rows, err := Conn.Raw(sql, id).Rows()
+	if err != nil {
+		return &ret, err
+	}
+	//opt := make([]VoteOpt, 0)
+	for rows.Next() {
+		//读取vote_opt数据
+		//ret1 := make(map[string]interface{})
+		_ = Conn.ScanRows(rows, &ret)
+
+		//再将map 的数据转存到结构体中，注意，这个方法非常难用，非常不好用。
+		//Gorm 还提供了一种自定义数据结构的方法，也不太好用
+
+		fmt.Printf("ret1:%+v\n", ret)
+	}
+
+	return &ret, nil
+}
+
+// GetVoteV4 改为并发模式1 绝对不会用的方式
+func GetVoteV4(id int64) (*VoteWithOpt, error) {
+	var ret Vote
+	opt := make([]VoteOpt, 0)
+
+	ch := make(chan struct{}, 2)
+	go func() {
+		err := Conn.Raw("select * from vote where id = ?", id).Scan(&ret).Error
+		if err != nil {
+			tools.Logger.Printf("[GetVoteV1]err:%s", err.Error())
+		}
+		ch <- struct{}{}
+	}()
+
+	go func() {
+		err := Conn.Raw("select * from vote_opt where vote_id = ?", id).Scan(&opt).Error
+		if err != nil {
+			tools.Logger.Printf("[GetVoteV1]err:%s", err.Error())
+		}
+		ch <- struct{}{}
+	}()
+
+	var ini int
+	for _ = range ch {
+		ini++
+		if ini >= 2 {
+			break
+		}
+	}
+
+	return &VoteWithOpt{
+		Vote: ret,
+		Opt:  opt,
+	}, nil
+}
+
+// GetVoteV5 改为并发模式2 最常用的方式
+func GetVoteV5(id int64) (*VoteWithOpt, error) {
+	var ret Vote
+	opt := make([]VoteOpt, 0)
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		err := Conn.Raw("select * from vote where id = ?", id).Scan(&ret).Error
+		if err != nil {
+			tools.Logger.Printf("[GetVoteV1]err:%s", err.Error())
+		}
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		err := Conn.Raw("select * from vote_opt where vote_id = ?", id).Scan(&opt).Error
+		if err != nil {
+			tools.Logger.Printf("[GetVoteV1]err:%s", err.Error())
+		}
+		wg.Done()
+	}()
+	wg.Wait()
+
+	return &VoteWithOpt{
+		Vote: ret,
+		Opt:  opt,
+	}, nil
 }
 
 // DoVote 通用方式
@@ -122,6 +264,44 @@ func DoVoteV2(userId, voteId int64, optIDs []int64) bool {
 	return true
 }
 
+// DoVoteV3 将SQL优化为原生SQL
+func DoVoteV3(userId, voteId int64, optIDs []int64) bool {
+	err := Conn.Transaction(func(tx *gorm.DB) error {
+		var ret Vote
+		err := tx.Raw("select * from vote where id = ? limit 1", voteId).Save(&ret).Error
+		if err != nil {
+			tools.Logger.Printf("[DoVoteV3]err:%s", err.Error())
+			return err //只要返回了err GORM会直接回滚，不会提交
+		}
+
+		for _, value := range optIDs {
+			err1 := tx.Exec("update vote_opt set count = count+1 where id = ? limit 1", value).Error
+			if err1 != nil {
+				tools.Logger.Printf("[DoVoteV3]err1:%s", err.Error())
+				return err
+			}
+			user := VoteOptUser{
+				VoteId:      voteId,
+				UserId:      userId,
+				VoteOptId:   value,
+				CreatedTime: time.Now(),
+			}
+			err2 := tx.Create(&user).Error // 通过数据的指针来创建
+			if err2 != nil {
+				tools.Logger.Printf("[DoVoteV3]err2:%s", err.Error())
+				return err
+			}
+		}
+		return nil //如果返回nil 则直接commit
+	})
+
+	if err != nil {
+		return false
+	}
+
+	return true
+}
+
 func AddVote(vote Vote, opt []VoteOpt) error {
 	err := Conn.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&vote).Error; err != nil {
@@ -164,6 +344,35 @@ func DelVote(id int64) error {
 	return nil
 }
 
+func DelVoteV1(id int64) error {
+	if err := Conn.Transaction(func(tx *gorm.DB) error {
+		err := tx.Exec("delete from vote where id = ? limit 1", id).Error
+		if err != nil {
+			tools.Logger.Printf("[DelVoteV1]err:%s", err.Error())
+			return err
+		}
+
+		err1 := tx.Exec("delete from vote_opt where vote_id = ?", id).Error
+		if err1 != nil {
+			tools.Logger.Printf("[DelVoteV1]err1:%s", err.Error())
+			return err
+		}
+
+		err2 := tx.Exec("delete from vote_opt_user where vote_id = ?", id).Error
+		if err2 != nil {
+			tools.Logger.Printf("[DelVoteV1]err2:%s", err.Error())
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		tools.Logger.Printf("[DelVoteV1]err:%s", err.Error())
+		return err
+	}
+
+	return nil
+}
+
 func UpdateVote(vote Vote, opt []VoteOpt) error {
 	err := Conn.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Save(&vote).Error; err != nil {
@@ -185,7 +394,6 @@ func GetVoteHistory(userId, voteId int64) []VoteOptUser {
 		fmt.Printf("err:%s", err.Error())
 	}
 	return ret
-
 }
 
 func EndVote() error {

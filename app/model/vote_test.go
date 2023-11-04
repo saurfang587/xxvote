@@ -1,9 +1,11 @@
 package model
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
+	"xxvote/app/tools"
 )
 
 func TestDelVote(t *testing.T) {
@@ -51,4 +53,18 @@ func TestUpdateVote(t *testing.T) {
 	r := DelVote(1)
 	fmt.Printf("ret:%+v", r)
 	Close()
+}
+
+func TestGetVoteV3(t *testing.T) {
+	NewMysql()
+	tools.NewLogs()
+	r, _ := GetVoteV5(2)
+	fmt.Printf("vote:%+v", r)
+}
+
+func TestGetVoteHistoryV1(t *testing.T) {
+	NewMysql()
+	NewRdb()
+	r := GetVoteHistoryV1(context.TODO(), 1, 1)
+	fmt.Printf("vote:%+v", r)
 }
